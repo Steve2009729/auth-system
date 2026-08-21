@@ -1,0 +1,56 @@
+name: Deploy Landing Page
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - "landing/**"          # only runs when landing files change
+
+jobs:
+  deploy-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    # Requires these repo secrets:
+    #   VERCEL_TOKEN         — from https://vercel.com/account/tokens
+    #   VERCEL_ORG_ID        — from .vercel/project.json after first `vercel link`
+    #   VERCEL_PROJECT_ID    — from .vercel/project.json after first `vercel link`
+    if: ${{ vars.DEPLOY_LANDING == 'true' || secrets.VERCEL_TOKEN != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy (production)
+        working-directory: landing
+        env:
+          VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          vercel build   --prod --token=$VERCEL_TOKEN
+          vercel deploy  --prebuilt --prod --token=$VERCEL_TOKEN
+
+  deploy-netlify:
+    name: Deploy to Netlify (alternative)
+    runs-on: ubuntu-latest
+    # Requires these repo secrets:
+    #   NETLIFY_AUTH_TOKEN   — from https://app.netlify.com/user/applications
+    #   NETLIFY_SITE_ID      — from site settings → API ID
+    if: ${{ secrets.NETLIFY_AUTH_TOKEN != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: ./landing
+          production-branch: main
+          production-deploy: true
+          deploy-message: "Deploy from GitHub Actions — ${{ github.sha }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID:    ${{ secrets.NETLIFY_SITE_ID }}

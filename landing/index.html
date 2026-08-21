@@ -139,8 +139,10 @@
           Copy
         </button>
       </div>
-      <pre id="install-code" class="font-mono text-sm px-5 py-4 overflow-x-auto leading-7"><span class="syn-comment"># install</span>
-<span class="syn-cmd">pip</span> install authsystem-fastapi
+      <pre id="install-code" class="font-mono text-sm px-5 py-4 overflow-x-auto leading-7"><span class="syn-comment"># clone and install</span>
+<span class="syn-cmd">git</span> clone https://github.com/Steve2009729/auth-system.git
+<span class="syn-cmd">cd</span> auth-system
+<span class="syn-cmd">pip</span> install -e .
 
 <span class="syn-comment"># scaffold .env, run migrations, start server</span>
 <span class="syn-cmd">authsystem</span> init <span class="syn-op">&&</span> <span class="syn-cmd">authsystem</span> migrate <span class="syn-op">&&</span> <span class="syn-cmd">authsystem</span> serve</pre>
