@@ -16,7 +16,7 @@ from app.services.auth_service import AuthService
 from app.services.session_service import SessionService
 from app.core.rate_limiter import RateLimiter
 from app.core.email import send_verification_email, send_password_reset_email
-from app.core.oauth2 import google_oauth, github_oauth
+from app.core.oauth2 import google_oauth, github_oauth, google_enabled, github_enabled
 from app.models.user import User
 from app.config import settings
 
@@ -165,34 +165,31 @@ async def resend_verification(
     data: ResendVerificationRequest,
     request: Request,
     session: AsyncSession = Depends(get_db),
-    redis = Depends(get_redis)
+    redis=Depends(get_redis)
 ):
-    """Resend email verification."""
-    ip = get_client_ip(request)
-
-    rate_limiter = RateLimiter(redis)
-    await rate_limiter.resend_verification_limit(ip)
-
-    # Check if user exists
-    auth_service = AuthService(session, redis)
-    user = await auth_service.session.execute(
-        "SELECT * FROM users WHERE email = %s", (data.email,)
-    )
-
-    # Generate new verification token
+    """Resend email verification. Always returns 200 to avoid user enumeration."""
+    from sqlalchemy import select as _select
     from app.core.security import generate_secure_token
     from app.models.token import Token, TokenType
     from datetime import datetime, timedelta
 
-    raw_token, hashed_token = generate_secure_token()
-    token = Token(
-        user_id=user.id if user else None,
-        token_hash=hashed_token,
-        token_type=TokenType.EMAIL_VERIFICATION,
-        is_used=False,
-        expires_at=datetime.utcnow() + timedelta(hours=24)
-    )
-    if user:
+    ip = get_client_ip(request)
+    rate_limiter = RateLimiter(redis)
+    await rate_limiter.resend_verification_limit(ip)
+
+    # Look up user — same response whether they exist or not
+    result = await session.execute(_select(User).where(User.email == data.email))
+    user = result.scalar()
+
+    if user and not user.is_verified:
+        raw_token, hashed_token = generate_secure_token()
+        token = Token(
+            user_id=user.id,
+            token_hash=hashed_token,
+            token_type=TokenType.EMAIL_VERIFICATION,
+            is_used=False,
+            expires_at=datetime.utcnow() + timedelta(hours=24),
+        )
         session.add(token)
         await session.flush()
 
@@ -200,8 +197,7 @@ async def resend_verification(
         await send_verification_email(data.email, verification_link)
 
     await session.commit()
-
-    return {"detail": "Verification email sent if account exists"}
+    return {"detail": "Verification email sent if account exists and is unverified"}
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
@@ -261,8 +257,12 @@ async def change_password(
 @router.get("/google")
 async def google_login(request: Request):
     """Redirect to Google OAuth."""
+    if not google_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth is not configured on this server."
+        )
     uri, state = google_oauth.get_authorization_url()
-    # Store state in session for verification
     return {"authorization_url": uri}
 
 
@@ -274,6 +274,11 @@ async def google_callback(
     redis = Depends(get_redis)
 ):
     """Handle Google OAuth callback."""
+    if not google_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth is not configured on this server."
+        )
     from sqlalchemy import select
     from app.models.user import User
 
@@ -333,6 +338,11 @@ async def google_callback(
 @router.get("/github")
 async def github_login():
     """Redirect to GitHub OAuth."""
+    if not github_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="GitHub OAuth is not configured on this server."
+        )
     uri, state = github_oauth.get_authorization_url()
     return {"authorization_url": uri}
 
@@ -344,6 +354,11 @@ async def github_callback(
     redis = Depends(get_redis)
 ):
     """Handle GitHub OAuth callback."""
+    if not github_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="GitHub OAuth is not configured on this server."
+        )
     from sqlalchemy import select
     from app.models.user import User
 
@@ -402,11 +417,23 @@ async def github_callback(
 @router.post("/2fa/setup", response_model=TwoFASetupResponse)
 async def setup_2fa(
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis)
 ):
-    """Setup 2FA - generate TOTP secret and QR code."""
+    """
+    Setup 2FA — generate a TOTP secret and QR code.
+
+    The secret is temporarily stored in Redis (keyed to the user) for 10 minutes.
+    Call POST /2fa/enable with the TOTP code from your authenticator app to confirm
+    and permanently enable 2FA.
+    """
     auth_service = AuthService(session)
     secret, qr_code, uri = await auth_service.setup_2fa(current_user.id)
+
+    # Store secret in Redis so /2fa/enable can retrieve it without sending it back
+    # from the client (which would expose it in a second request).
+    await redis.setex(f"totp_pending:{current_user.id}", 600, secret)
+
     return TwoFASetupResponse(secret=secret, qr_code=qr_code, provisioning_uri=uri)
 
 
@@ -414,20 +441,32 @@ async def setup_2fa(
 async def enable_2fa(
     data: TOTPEnableRequest,
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis)
 ):
-    """Enable 2FA after verifying the TOTP code."""
-    # The secret should have been generated and stored temporarily
-    # For now, we'll extract it from the request headers or similar
-    # This is a simplified implementation
-    auth_service = AuthService(session)
+    """
+    Enable 2FA after scanning the QR code.
 
-    # In production, the secret would be stored temporarily in Redis
-    # For this example, we'll need to pass it somehow
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Secret not found. Please call /2fa/setup first"
-    )
+    Provide the 6-digit code from your authenticator app. The pending secret
+    must have been generated within the last 10 minutes via POST /2fa/setup.
+    """
+    # Retrieve the pending secret from Redis
+    secret = await redis.get(f"totp_pending:{current_user.id}")
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending 2FA setup found. Call POST /auth/2fa/setup first, "
+                   "then enable within 10 minutes."
+        )
+
+    auth_service = AuthService(session)
+    user = await auth_service.enable_2fa(current_user.id, secret, data.code)
+
+    # Clean up the pending secret
+    await redis.delete(f"totp_pending:{current_user.id}")
+
+    await session.commit()
+    return UserResponse.from_orm(user)
 
 
 @router.post("/2fa/disable", response_model=UserResponse)

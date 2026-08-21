@@ -1,0 +1,72 @@
+/*
+ * AuthSystem Landing — Custom CSS
+ * Only things Tailwind CDN utility classes cannot express:
+ *   1. Syntax-highlight token colours
+ *   2. Tab active-state bottom border
+ *   3. Copy button base styles
+ *   4. Custom scrollbar
+ *   5. hero font-size clamp (registered as a Tailwind fontSize above, but kept
+ *      here as a fallback for browsers where the CDN hasn't hydrated yet)
+ */
+
+/* ── Syntax tokens ───────────────────────────────────────────────────────── */
+.syn-comment { color: #4B5563; }           /* muted grey     */
+.syn-cmd     { color: #F4F4F5; }           /* primary — commands stand out */
+.syn-kw      { color: #93C5FD; }           /* blue — import, const, await  */
+.syn-str     { color: #86EFAC; }           /* green-tinted string          */
+.syn-flag    { color: #A1A1AA; }           /* dim flag/option              */
+.syn-op      { color: #FCA5A5; }           /* red-tinted operator          */
+
+/* ── Tab indicator ───────────────────────────────────────────────────────── */
+.tab-btn {
+  color: #6B6B70;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: #F4F4F5; }
+
+.active-tab {
+  color: #F4F4F5;
+  border-bottom: 2px solid #22C55E;
+}
+
+/* ── Copy button ─────────────────────────────────────────────────────────── */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #6B6B70;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.copy-btn:hover { color: #F4F4F5; background: rgba(255,255,255,0.04); }
+.copy-btn.copied { color: #22C55E; }
+
+/* ── Tab panels ──────────────────────────────────────────────────────────── */
+.tab-panel        { display: block; }
+.tab-panel.hidden { display: none; }
+
+/* ── Toast (Tailwind handles most, this adds will-change) ────────────────── */
+#toast.show {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: #0A0A0B; }
+::-webkit-scrollbar-thumb        { background: #232326; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: #4B5563; }
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection { background: rgba(34,197,94,.25); color: #F4F4F5; }
+
+/* ── Prevent FOUC on pre blocks before fonts load ───────────────────────── */
+pre, code { font-family: 'JetBrains Mono', 'Menlo', monospace; }

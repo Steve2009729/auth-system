@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuthSystem — Self-hosted auth backend for FastAPI</title>
+  <meta name="description" content="JWT, RBAC, 2FA, OAuth2, audit logs — production-grade authentication in one FastAPI backend you own, deploy, and control. MIT licensed." />
+  <meta property="og:title"       content="AuthSystem — Self-hosted auth backend" />
+  <meta property="og:description" content="JWT, RBAC, 2FA, OAuth2, audit logs. pip install and running in under 5 minutes." />
+  <meta property="og:type"        content="website" />
+  <meta name="twitter:card"       content="summary_large_image" />
+
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CDN — no npm required, works on Vercel static deploy -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg:       '#0A0A0B',
+            surface:  '#131316',
+            border:   '#232326',
+            'text-primary':   '#F4F4F5',
+            'text-secondary': '#A1A1AA',
+            'text-muted':     '#6B6B70',
+            accent:       '#22C55E',
+            'accent-hover': '#16A34A',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+          },
+          fontSize: {
+            'hero': ['clamp(2.4rem,5.5vw,3.75rem)', { lineHeight: '1.05', letterSpacing: '-0.03em' }],
+          },
+          maxWidth: {
+            content: '72rem',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Minimal custom CSS: syntax tokens + scrollbar + tab indicator (not expressible in Tailwind utility classes) -->
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+
+<body class="bg-bg text-text-primary font-sans antialiased">
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     NAV
+───────────────────────────────────────────────────────────────────────────── -->
+<header class="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur-sm" role="banner">
+  <div class="max-w-content mx-auto px-6 flex items-center justify-between h-14">
+
+    <a href="#hero" class="font-mono text-base font-bold text-text-primary tracking-tight no-underline">
+      Auth<span class="text-accent">System</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7" aria-label="Primary navigation">
+      <a href="#features"  class="text-sm text-text-secondary hover:text-text-primary transition-colors">Features</a>
+      <a href="#api"       class="text-sm text-text-secondary hover:text-text-primary transition-colors">API</a>
+      <a href="#cli"       class="text-sm text-text-secondary hover:text-text-primary transition-colors">CLI</a>
+      <a href="#why"       class="text-sm text-text-secondary hover:text-text-primary transition-colors">Why self-host</a>
+      <a href="https://github.com/Steve2009729/auth-system"
+         target="_blank" rel="noopener"
+         class="text-sm text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1.5">
+        <!-- GitHub icon -->
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+      <a href="https://auth-system-demo.onrender.com/docs"
+         target="_blank" rel="noopener"
+         class="text-sm border border-border text-text-primary px-4 py-1.5 rounded-md hover:border-text-secondary transition-colors">
+        Try demo
+      </a>
+    </nav>
+
+  </div>
+</header>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     HERO
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="hero" class="py-28 md:py-36" aria-labelledby="hero-heading">
+  <div class="max-w-content mx-auto px-6 text-center">
+
+    <!-- Eyebrow -->
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-6">
+      Self-hosted auth
+    </p>
+
+    <!-- H1 -->
+    <h1 id="hero-heading"
+        class="text-hero font-semibold text-text-primary max-w-3xl mx-auto mb-6">
+      Authentication and authorization<br class="hidden sm:block" />
+      you actually own.
+    </h1>
+
+    <!-- Sub -->
+    <p class="text-lg text-text-secondary leading-relaxed max-w-2xl mx-auto mb-10">
+      JWT, RBAC, 2FA, OAuth2, audit logs — production-grade FastAPI backend.
+      Self-hosted, MIT licensed, running in under 5 minutes.
+    </p>
+
+    <!-- CTAs -->
+    <div class="flex flex-wrap items-center justify-center gap-3 mb-14">
+      <a href="https://auth-system-demo.onrender.com/docs"
+         target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 bg-accent text-black font-medium px-5 py-2.5 rounded-md hover:bg-accent-hover transition-colors text-sm">
+        <!-- Play icon -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+        Try the live demo
+      </a>
+      <a href="https://github.com/Steve2009729/auth-system"
+         target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 border border-border text-text-primary px-5 py-2.5 rounded-md hover:border-text-secondary transition-colors text-sm">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+
+    <!-- Install block — highest-value element on the page -->
+    <div class="max-w-xl mx-auto bg-surface border border-border rounded-lg overflow-hidden text-left"
+         role="region" aria-label="Install command">
+      <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
+        <span class="font-mono text-xs text-text-muted uppercase tracking-wider">bash</span>
+        <button class="copy-btn" data-copy-target="install-code" aria-label="Copy install command">
+          <!-- Copy icon -->
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <pre id="install-code" class="font-mono text-sm px-5 py-4 overflow-x-auto leading-7"><span class="syn-comment"># install</span>
+<span class="syn-cmd">pip</span> install authsystem-fastapi
+
+<span class="syn-comment"># scaffold .env, run migrations, start server</span>
+<span class="syn-cmd">authsystem</span> init <span class="syn-op">&&</span> <span class="syn-cmd">authsystem</span> migrate <span class="syn-op">&&</span> <span class="syn-cmd">authsystem</span> serve</pre>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     FEATURE GRID
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="features" class="border-t border-border py-24 md:py-32" aria-labelledby="features-heading">
+  <div class="max-w-content mx-auto px-6">
+
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-4">What's included</p>
+    <h2 id="features-heading" class="text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-4">
+      Everything you need.<br class="hidden sm:block" /> Nothing you don't.
+    </h2>
+    <p class="text-lg text-text-secondary leading-relaxed max-w-2xl mb-14">
+      Built on FastAPI with async PostgreSQL and Redis. Every feature is production-grade and independently testable.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" role="list">
+
+      <!-- JWT -->
+      <article class="bg-surface border border-border rounded-lg p-6 hover:border-text-muted transition-colors" role="listitem">
+        <div class="mb-4 text-accent" aria-hidden="true">
+          <!-- Shield icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3 class="text-base font-semibold text-text-primary mb-2">JWT + Refresh Rotation</h3>
+        <p class="text-sm text-text-secondary leading-relaxed">Short-lived access tokens paired with rotating refresh tokens. Replay-attack detection revokes all sessions on reuse.</p>
+      </article>
+
+      <!-- RBAC -->
+      <article class="bg-surface border border-border rounded-lg p-6 hover:border-text-muted transition-colors" role="listitem">
+        <div class="mb-4 text-accent" aria-hidden="true">
+          <!-- Users icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <h3 class="text-base font-semibold text-text-primary mb-2">RBAC — Roles &amp; Permissions</h3>
+        <p class="text-sm text-text-secondary leading-relaxed">Fine-grained role-based access control. Assign roles to users, attach permissions to roles, enforce per-route.</p>
+      </article>
+
+      <!-- 2FA -->
+      <article class="bg-surface border border-border rounded-lg p-6 hover:border-text-muted transition-colors" role="listitem">
+        <div class="mb-4 text-accent" aria-hidden="true">
+          <!-- Smartphone icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <h3 class="text-base font-semibold text-text-primary mb-2">TOTP Two-Factor Auth</h3>
+        <p class="text-sm text-text-secondary leading-relaxed">Google Authenticator-compatible TOTP 2FA. QR code setup, Redis-backed session handoff, clean enable/disable flow.</p>
+      </article>
+
+      <!-- OAuth2 -->
+      <article class="bg-surface border border-border rounded-lg p-6 hover:border-text-muted transition-colors" role="listitem">
+        <div class="mb-4 text-accent" aria-hidden="true">
+          <!-- Link icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+        </div>
+        <h3 class="text-base font-semibold text-text-primary mb-2">OAuth2 — Google &amp; GitHub</h3>
+        <p class="text-sm text-text-secondary leading-relaxed">Drop-in Google and GitHub login. Both providers are optional — returns 501 if credentials are not configured.</p>
+      </article>
+
+      <!-- Rate limiting -->
+      <article class="bg-surface border border-border rounded-lg p-6 hover:border-text-muted transition-colors" role="listitem">
+        <div class="mb-4 text-accent" aria-hidden="true">
+          <!-- Zap icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <h3 class="text-base font-semibold text-text-primary mb-2">Rate Limiting &amp; Lockout</h3>
+        <p class="text-sm text-text-secondary leading-relaxed">Redis sliding-window rate limits per IP per endpoint. Progressive account lockout after 3, 5, and 10 failed attempts.</p>
+      </article>
+
+      <!-- Audit log -->
+      <article class="bg-surface border border-border rounded-lg p-6 hover:border-text-muted transition-colors" role="listitem">
+        <div class="mb-4 text-accent" aria-hidden="true">
+          <!-- File-text icon -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <h3 class="text-base font-semibold text-text-primary mb-2">Full Audit Log</h3>
+        <p class="text-sm text-text-secondary leading-relaxed">Every auth event — login, logout, password change, role assignment — written to an append-only log with IP and metadata.</p>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     API PREVIEW
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="api" class="border-t border-border py-24 md:py-32" aria-labelledby="api-heading">
+  <div class="max-w-content mx-auto px-6">
+
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-4">See it in action</p>
+    <h2 id="api-heading" class="text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-4">
+      Register. Login. Call a protected route.
+    </h2>
+    <p class="text-lg text-text-secondary leading-relaxed max-w-2xl mb-12">
+      The complete auth flow in four calls. Every snippet below runs against the real API.
+    </p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+
+      <!-- Steps -->
+      <div>
+        <h3 class="text-xl font-semibold text-text-primary mb-5">The core flow</h3>
+        <p class="text-base text-text-secondary leading-relaxed mb-6">
+          AuthSystem handles the full lifecycle — registration, email verification,
+          token refresh, logout, and 2FA — so you focus on your application.
+        </p>
+        <ol class="space-y-3" role="list">
+          <li class="flex items-start gap-3 text-sm text-text-secondary">
+            <span class="mt-0.5 min-w-[22px] h-[22px] rounded-full border border-border flex items-center justify-center font-mono text-xs text-text-muted" aria-hidden="true">1</span>
+            <span><code class="font-mono text-text-primary text-xs bg-surface border border-border px-1.5 py-0.5 rounded">POST /auth/register</code> — create account</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-text-secondary">
+            <span class="mt-0.5 min-w-[22px] h-[22px] rounded-full border border-border flex items-center justify-center font-mono text-xs text-text-muted" aria-hidden="true">2</span>
+            <span><code class="font-mono text-text-primary text-xs bg-surface border border-border px-1.5 py-0.5 rounded">POST /auth/login</code> — get access + refresh tokens</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-text-secondary">
+            <span class="mt-0.5 min-w-[22px] h-[22px] rounded-full border border-border flex items-center justify-center font-mono text-xs text-text-muted" aria-hidden="true">3</span>
+            <span><code class="font-mono text-text-primary text-xs bg-surface border border-border px-1.5 py-0.5 rounded">GET /users/me</code> — call any protected route</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-text-secondary">
+            <span class="mt-0.5 min-w-[22px] h-[22px] rounded-full border border-border flex items-center justify-center font-mono text-xs text-text-muted" aria-hidden="true">4</span>
+            <span><code class="font-mono text-text-primary text-xs bg-surface border border-border px-1.5 py-0.5 rounded">POST /auth/refresh</code> — rotate tokens before expiry</span>
+          </li>
+        </ol>
+      </div>
+
+      <!-- Code tabs -->
+      <div class="bg-surface border border-border rounded-lg overflow-hidden">
+
+        <!-- Tab bar -->
+        <div class="flex items-center justify-between border-b border-border px-1">
+          <div class="flex" role="tablist" aria-label="Language" id="api-tabs">
+            <button class="tab-btn active-tab px-4 py-2.5 font-mono text-xs font-medium transition-colors" role="tab" aria-selected="true"  data-tab="curl"   data-group="api">cURL</button>
+            <button class="tab-btn        px-4 py-2.5 font-mono text-xs font-medium transition-colors" role="tab" aria-selected="false" data-tab="python" data-group="api">Python</button>
+            <button class="tab-btn        px-4 py-2.5 font-mono text-xs font-medium transition-colors" role="tab" aria-selected="false" data-tab="js"     data-group="api">JavaScript</button>
+          </div>
+          <button class="copy-btn mr-3" id="api-copy-btn" data-copy-target="api-code-curl" aria-label="Copy code">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+
+        <!-- cURL -->
+        <div id="api-panel-curl" class="tab-panel" role="tabpanel">
+          <pre id="api-code-curl" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-comment"># 1. Register</span>
+<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> http://localhost:8000/auth/register \
+  <span class="syn-flag">-H</span> <span class="syn-str">"Content-Type: application/json"</span> \
+  <span class="syn-flag">-d</span> <span class="syn-str">'{"email":"you@example.com","username":"alice","password":"Secret123!"}'</span>
+
+<span class="syn-comment"># 2. Login — receive access + refresh tokens</span>
+<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> http://localhost:8000/auth/login \
+  <span class="syn-flag">-H</span> <span class="syn-str">"Content-Type: application/json"</span> \
+  <span class="syn-flag">-d</span> <span class="syn-str">'{"email":"you@example.com","password":"Secret123!"}'</span>
+
+<span class="syn-comment"># 3. Call a protected endpoint</span>
+<span class="syn-cmd">curl</span> http://localhost:8000/users/me \
+  <span class="syn-flag">-H</span> <span class="syn-str">"Authorization: Bearer ACCESS_TOKEN"</span>
+
+<span class="syn-comment"># 4. Refresh — rotate tokens before expiry</span>
+<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> http://localhost:8000/auth/refresh \
+  <span class="syn-flag">-H</span> <span class="syn-str">"Content-Type: application/json"</span> \
+  <span class="syn-flag">-d</span> <span class="syn-str">'{"refresh_token":"REFRESH_TOKEN"}'</span></pre>
+        </div>
+
+        <!-- Python -->
+        <div id="api-panel-python" class="tab-panel hidden" role="tabpanel">
+          <pre id="api-code-python" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-kw">import</span> httpx
+
+BASE = <span class="syn-str">"http://localhost:8000"</span>
+
+<span class="syn-comment"># 1. Register</span>
+httpx.post(<span class="syn-str">f"{BASE}/auth/register"</span>, json={
+    <span class="syn-str">"email"</span>: <span class="syn-str">"you@example.com"</span>,
+    <span class="syn-str">"username"</span>: <span class="syn-str">"alice"</span>,
+    <span class="syn-str">"password"</span>: <span class="syn-str">"Secret123!"</span>,
+})
+
+<span class="syn-comment"># 2. Login</span>
+res    = httpx.post(<span class="syn-str">f"{BASE}/auth/login"</span>, json={
+    <span class="syn-str">"email"</span>: <span class="syn-str">"you@example.com"</span>,
+    <span class="syn-str">"password"</span>: <span class="syn-str">"Secret123!"</span>,
+})
+access = res.json()[<span class="syn-str">"access_token"</span>]
+
+<span class="syn-comment"># 3. Call a protected endpoint</span>
+me = httpx.get(<span class="syn-str">f"{BASE}/users/me"</span>,
+    headers={<span class="syn-str">"Authorization"</span>: <span class="syn-str">f"Bearer {access}"</span>})
+<span class="syn-kw">print</span>(me.json())</pre>
+        </div>
+
+        <!-- JavaScript -->
+        <div id="api-panel-js" class="tab-panel hidden" role="tabpanel">
+          <pre id="api-code-js" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-kw">const</span> BASE = <span class="syn-str">"http://localhost:8000"</span>;
+
+<span class="syn-comment">// 1. Register</span>
+<span class="syn-kw">await</span> fetch(<span class="syn-str">`${BASE}/auth/register`</span>, {
+  method: <span class="syn-str">"POST"</span>,
+  headers: { <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span> },
+  body: JSON.stringify({
+    email: <span class="syn-str">"you@example.com"</span>, username: <span class="syn-str">"alice"</span>, password: <span class="syn-str">"Secret123!"</span>,
+  }),
+});
+
+<span class="syn-comment">// 2. Login</span>
+<span class="syn-kw">const</span> { access_token } = <span class="syn-kw">await</span>
+  fetch(<span class="syn-str">`${BASE}/auth/login`</span>, {
+    method: <span class="syn-str">"POST"</span>,
+    headers: { <span class="syn-str">"Content-Type"</span>: <span class="syn-str">"application/json"</span> },
+    body: JSON.stringify({ email: <span class="syn-str">"you@example.com"</span>, password: <span class="syn-str">"Secret123!"</span> }),
+  }).then(r => r.json());
+
+<span class="syn-comment">// 3. Call a protected endpoint</span>
+<span class="syn-kw">const</span> me = <span class="syn-kw">await</span> fetch(<span class="syn-str">`${BASE}/users/me`</span>, {
+  headers: { <span class="syn-str">"Authorization"</span>: <span class="syn-str">`Bearer ${access_token}`</span> },
+}).then(r => r.json());
+console.log(me);</pre>
+        </div>
+
+      </div><!-- /code tabs -->
+    </div><!-- /grid -->
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     ARCHITECTURE
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="architecture" class="border-t border-border py-24 md:py-32" aria-labelledby="arch-heading">
+  <div class="max-w-content mx-auto px-6">
+
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-4">Architecture</p>
+    <h2 id="arch-heading" class="text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-4">
+      Clean layers. No magic.
+    </h2>
+    <p class="text-lg text-text-secondary leading-relaxed max-w-2xl mb-14">
+      Routers handle HTTP. Services own business logic. Models map to Postgres.
+      Redis handles rate limits, token blacklisting, and 2FA sessions.
+    </p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+
+      <!-- SVG diagram — 3 flat boxes, thin lines, no decoration -->
+      <div aria-label="Architecture diagram: Client to AuthSystem to Postgres and Redis" role="img">
+        <svg viewBox="0 0 420 320" fill="none" xmlns="http://www.w3.org/2000/svg"
+             class="w-full max-w-md mx-auto" aria-hidden="true">
+          <!-- Client box -->
+          <rect x="135" y="10" width="150" height="48" rx="4" fill="#131316" stroke="#232326" stroke-width="1"/>
+          <text x="210" y="39" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#F4F4F5">Your Client</text>
+
+          <!-- Arrow down -->
+          <line x1="210" y1="58" x2="210" y2="108" stroke="#232326" stroke-width="1"/>
+          <polygon points="205,104 210,114 215,104" fill="#232326"/>
+          <text x="218" y="86" font-family="JetBrains Mono, monospace" font-size="10" fill="#6B6B70">HTTP / REST</text>
+
+          <!-- AuthSystem box -->
+          <rect x="85" y="114" width="250" height="72" rx="4" fill="#131316" stroke="#232326" stroke-width="1"/>
+          <text x="210" y="140" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#F4F4F5">AuthSystem (FastAPI)</text>
+          <text x="210" y="160" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#6B6B70">routers → services → models → core</text>
+          <text x="210" y="176" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#22C55E">app/</text>
+
+          <!-- Arrow to Postgres -->
+          <line x1="145" y1="186" x2="100" y2="236" stroke="#232326" stroke-width="1"/>
+          <polygon points="95,232 103,242 108,232" fill="#232326"/>
+
+          <!-- Arrow to Redis -->
+          <line x1="275" y1="186" x2="320" y2="236" stroke="#232326" stroke-width="1"/>
+          <polygon points="315,232 323,242 328,232" fill="#232326"/>
+
+          <!-- Postgres box -->
+          <rect x="30" y="244" width="140" height="60" rx="4" fill="#131316" stroke="#232326" stroke-width="1"/>
+          <text x="100" y="268" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#F4F4F5">PostgreSQL</text>
+          <text x="100" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#6B6B70">users · roles · audit</text>
+
+          <!-- Redis box -->
+          <rect x="250" y="244" width="140" height="60" rx="4" fill="#131316" stroke="#232326" stroke-width="1"/>
+          <text x="320" y="268" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#F4F4F5">Redis</text>
+          <text x="320" y="286" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#6B6B70">tokens · limits · 2FA</text>
+        </svg>
+      </div>
+
+      <!-- Layer list — plain text, no card pattern repetition -->
+      <div class="space-y-8">
+        <div>
+          <p class="font-mono text-xs text-accent mb-1">app/routers/</p>
+          <h3 class="text-base font-semibold text-text-primary mb-1">Routers</h3>
+          <p class="text-sm text-text-secondary leading-relaxed">Thin HTTP layer. Request validation, auth dependencies, response serialisation. No business logic lives here.</p>
+        </div>
+        <div>
+          <p class="font-mono text-xs text-accent mb-1">app/services/</p>
+          <h3 class="text-base font-semibold text-text-primary mb-1">Services</h3>
+          <p class="text-sm text-text-secondary leading-relaxed">All business logic: AuthService, SessionService, UserService. Independently testable with no HTTP concerns.</p>
+        </div>
+        <div>
+          <p class="font-mono text-xs text-accent mb-1">app/models/</p>
+          <h3 class="text-base font-semibold text-text-primary mb-1">Models</h3>
+          <p class="text-sm text-text-secondary leading-relaxed">SQLAlchemy async ORM — User, Role, Permission, Session, Token, AuditLog. Full typed relationships.</p>
+        </div>
+        <div>
+          <p class="font-mono text-xs text-accent mb-1">app/core/</p>
+          <h3 class="text-base font-semibold text-text-primary mb-1">Core</h3>
+          <p class="text-sm text-text-secondary leading-relaxed">Security primitives: JWT, bcrypt, TOTP, rate limiter, email, audit writer. Dependency-injectable and easy to swap.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     CLI REFERENCE
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="cli" class="border-t border-border py-24 md:py-32" aria-labelledby="cli-heading">
+  <div class="max-w-content mx-auto px-6">
+
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-4">CLI reference</p>
+    <h2 id="cli-heading" class="text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-4">
+      Four commands. That's all you need.
+    </h2>
+    <p class="text-lg text-text-secondary leading-relaxed max-w-2xl mb-12">
+      Install once, use anywhere. Every command has <code class="font-mono text-sm text-text-primary bg-surface border border-border px-1.5 py-0.5 rounded">--help</code> detailed enough that you won't need the docs.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- init -->
+      <div class="bg-surface border border-border rounded-lg overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          <span class="font-mono text-xs text-accent font-bold">authsystem init</span>
+          <button class="copy-btn" data-copy-text="authsystem init" aria-label="Copy authsystem init">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre class="font-mono text-xs px-4 py-3 text-text-primary leading-6"><span class="syn-cmd">authsystem</span> init <span class="syn-comment">[--force]</span></pre>
+        <p class="text-xs text-text-secondary px-4 pb-3 leading-relaxed">Creates <code class="font-mono text-text-primary">.env</code> and auto-generates a secure <code class="font-mono text-text-primary">SECRET_KEY</code>. Use <code class="font-mono text-text-primary">--force</code> to overwrite an existing <code class="font-mono text-text-primary">.env</code>.</p>
+      </div>
+
+      <!-- serve -->
+      <div class="bg-surface border border-border rounded-lg overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          <span class="font-mono text-xs text-accent font-bold">authsystem serve</span>
+          <button class="copy-btn" data-copy-text="authsystem serve" aria-label="Copy authsystem serve">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre class="font-mono text-xs px-4 py-3 text-text-primary leading-6"><span class="syn-cmd">authsystem</span> serve <span class="syn-comment">[--host] [--port] [--workers N]</span></pre>
+        <p class="text-xs text-text-secondary px-4 pb-3 leading-relaxed">Starts the API via uvicorn. Hot-reload on by default. Pass <code class="font-mono text-text-primary">--no-reload --workers N</code> for production.</p>
+      </div>
+
+      <!-- create-admin -->
+      <div class="bg-surface border border-border rounded-lg overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          <span class="font-mono text-xs text-accent font-bold">authsystem create-admin</span>
+          <button class="copy-btn" data-copy-text="authsystem create-admin" aria-label="Copy authsystem create-admin">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre class="font-mono text-xs px-4 py-3 text-text-primary leading-6"><span class="syn-cmd">authsystem</span> create-admin <span class="syn-flag">--email</span> admin@you.com</pre>
+        <p class="text-xs text-text-secondary px-4 pb-3 leading-relaxed">Creates a superuser with the admin role. Prompts for password if <code class="font-mono text-text-primary">--password</code> is omitted. DB must be migrated first.</p>
+      </div>
+
+      <!-- migrate -->
+      <div class="bg-surface border border-border rounded-lg overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          <span class="font-mono text-xs text-accent font-bold">authsystem migrate</span>
+          <button class="copy-btn" data-copy-text="authsystem migrate" aria-label="Copy authsystem migrate">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+        <pre class="font-mono text-xs px-4 py-3 text-text-primary leading-6"><span class="syn-cmd">authsystem</span> migrate <span class="syn-comment">[revision | --autogenerate -m "msg"]</span></pre>
+        <p class="text-xs text-text-secondary px-4 pb-3 leading-relaxed">Runs <code class="font-mono text-text-primary">alembic upgrade head</code>. Use <code class="font-mono text-text-primary">--autogenerate</code> to generate new migrations from model changes.</p>
+      </div>
+
+    </div>
+
+    <p class="mt-8 text-sm text-text-muted">
+      Full reference on
+      <a href="https://github.com/Steve2009729/auth-system#cli-reference"
+         target="_blank" rel="noopener"
+         class="text-text-secondary hover:text-text-primary transition-colors">
+        GitHub →
+      </a>
+    </p>
+
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     WHY SELF-HOSTED  (pure typography — no card repeat)
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="why" class="border-t border-border py-24 md:py-32" aria-labelledby="why-heading">
+  <div class="max-w-content mx-auto px-6">
+
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-4">Why self-host</p>
+    <h2 id="why-heading" class="text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-12">
+      Your auth. Your data. Your rules.
+    </h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-14">
+
+      <!-- Three points — plain text, no icons, visual contrast from card sections -->
+      <div class="space-y-10">
+        <div>
+          <h3 class="text-base font-semibold text-text-primary mb-2">Your data stays with you</h3>
+          <p class="text-base text-text-secondary leading-relaxed">
+            User records, sessions, and audit logs live in your Postgres instance — on your infrastructure,
+            under your backup policy, subject to your data retention rules. No third party can read, sell,
+            or lose your users' data.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-text-primary mb-2">No per-user pricing surprises</h3>
+          <p class="text-base text-text-secondary leading-relaxed">
+            Managed auth services charge per monthly active user. AuthSystem is flat: pay for your server,
+            nothing else — whether you have 100 users or 100,000. Your costs don't scale with your growth.
+          </p>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-text-primary mb-2">Full control over the code</h3>
+          <p class="text-base text-text-secondary leading-relaxed">
+            Need a custom permission model, a non-standard OAuth provider, or a bespoke audit event?
+            Fork it, change it, ship it. MIT licensed Python — no SDK wrappers, no black boxes.
+          </p>
+        </div>
+      </div>
+
+      <!-- Comparison table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse" role="grid" aria-label="AuthSystem vs Auth0 / Clerk">
+          <thead>
+            <tr class="border-b border-border">
+              <th class="text-left py-3 pr-4 text-text-muted font-medium">Feature</th>
+              <th class="text-left py-3 pr-4 text-text-muted font-medium">AuthSystem</th>
+              <th class="text-left py-3 text-text-muted font-medium">Auth0 / Clerk</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border">
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">Own your data</td>
+              <td class="py-3 pr-4 text-accent font-medium">Yes</td>
+              <td class="py-3 text-text-muted">Their servers</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">Per-MAU pricing</td>
+              <td class="py-3 pr-4 text-accent font-medium">None</td>
+              <td class="py-3 text-text-muted">Scales fast</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">MIT licensed</td>
+              <td class="py-3 pr-4 text-accent font-medium">Yes</td>
+              <td class="py-3 text-text-muted">Proprietary</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">Self-hostable</td>
+              <td class="py-3 pr-4 text-accent font-medium">Yes</td>
+              <td class="py-3 text-text-muted">SaaS only</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">Custom RBAC</td>
+              <td class="py-3 pr-4 text-accent font-medium">Full control</td>
+              <td class="py-3 text-text-muted">Limited / paid</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">Audit log ownership</td>
+              <td class="py-3 pr-4 text-accent font-medium">Your DB</td>
+              <td class="py-3 text-text-muted">Their dashboard</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 text-text-secondary">Vendor lock-in</td>
+              <td class="py-3 pr-4 text-accent font-medium">None</td>
+              <td class="py-3 text-text-muted">SDK dependency</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     GITHUB CTA  (replaces waitlist — honest ask per blueprint sec 3.8)
+───────────────────────────────────────────────────────────────────────────── -->
+<section id="cta" class="border-t border-border py-24 md:py-32" aria-labelledby="cta-heading">
+  <div class="max-w-content mx-auto px-6 text-center">
+
+    <p class="text-xs uppercase tracking-widest text-text-muted font-medium mb-6">Open source</p>
+    <h2 id="cta-heading" class="text-3xl md:text-4xl font-semibold tracking-tight text-text-primary mb-5">
+      Star it. Fork it. Ship it.
+    </h2>
+    <p class="text-lg text-text-secondary leading-relaxed max-w-xl mx-auto mb-10">
+      AuthSystem is MIT licensed and actively developed. Star the repo to follow progress,
+      open an issue to report bugs, or fork it and make it your own.
+    </p>
+
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <a href="https://github.com/Steve2009729/auth-system"
+         target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 bg-accent text-black font-medium px-5 py-2.5 rounded-md hover:bg-accent-hover transition-colors text-sm">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        Star on GitHub
+      </a>
+      <a href="https://github.com/Steve2009729/auth-system/issues"
+         target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 border border-border text-text-primary px-5 py-2.5 rounded-md hover:border-text-secondary transition-colors text-sm">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Open an issue
+      </a>
+      <a href="https://auth-system-demo.onrender.com/docs"
+         target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 border border-border text-text-primary px-5 py-2.5 rounded-md hover:border-text-secondary transition-colors text-sm">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+        Try the live demo
+      </a>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     FOOTER
+───────────────────────────────────────────────────────────────────────────── -->
+<footer class="border-t border-border py-8" role="contentinfo">
+  <div class="max-w-content mx-auto px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <p class="text-sm text-text-muted">
+      Built with FastAPI, PostgreSQL &amp; Redis ·
+      <a href="https://github.com/Steve2009729/auth-system/blob/main/LICENSE"
+         target="_blank" rel="noopener"
+         class="hover:text-text-secondary transition-colors">MIT License</a>
+    </p>
+    <nav aria-label="Footer links">
+      <ul class="flex items-center gap-6 list-none" role="list">
+        <li><a href="https://github.com/Steve2009729/auth-system" target="_blank" rel="noopener" class="text-sm text-text-muted hover:text-text-secondary transition-colors">GitHub</a></li>
+        <li><a href="https://github.com/Steve2009729/auth-system/issues" target="_blank" rel="noopener" class="text-sm text-text-muted hover:text-text-secondary transition-colors">Issues</a></li>
+        <li><a href="https://github.com/Steve2009729/auth-system/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" class="text-sm text-text-muted hover:text-text-secondary transition-colors">Contributing</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"
+     class="fixed bottom-6 right-6 z-50 bg-surface border border-border rounded-md px-4 py-3 text-sm text-text-primary
+            translate-y-16 opacity-0 pointer-events-none transition-all duration-200 ease-out"
+     style="will-change:transform,opacity;">
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
