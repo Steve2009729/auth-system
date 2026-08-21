@@ -295,21 +295,21 @@
         <!-- cURL -->
         <div id="api-panel-curl" class="tab-panel" role="tabpanel">
           <pre id="api-code-curl" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-comment"># 1. Register</span>
-<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> http://localhost:8000/auth/register \
+<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> https://auth-system-9ai3.onrender.com/auth/register \
   <span class="syn-flag">-H</span> <span class="syn-str">"Content-Type: application/json"</span> \
   <span class="syn-flag">-d</span> <span class="syn-str">'{"email":"you@example.com","username":"alice","password":"Secret123!"}'</span>
 
 <span class="syn-comment"># 2. Login — receive access + refresh tokens</span>
-<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> http://localhost:8000/auth/login \
+<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> https://auth-system-9ai3.onrender.com/auth/login \
   <span class="syn-flag">-H</span> <span class="syn-str">"Content-Type: application/json"</span> \
   <span class="syn-flag">-d</span> <span class="syn-str">'{"email":"you@example.com","password":"Secret123!"}'</span>
 
 <span class="syn-comment"># 3. Call a protected endpoint</span>
-<span class="syn-cmd">curl</span> http://localhost:8000/users/me \
+<span class="syn-cmd">curl</span> https://auth-system-9ai3.onrender.com/users/me \
   <span class="syn-flag">-H</span> <span class="syn-str">"Authorization: Bearer ACCESS_TOKEN"</span>
 
 <span class="syn-comment"># 4. Refresh — rotate tokens before expiry</span>
-<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> http://localhost:8000/auth/refresh \
+<span class="syn-cmd">curl</span> <span class="syn-flag">-X POST</span> https://auth-system-9ai3.onrender.com/auth/refresh \
   <span class="syn-flag">-H</span> <span class="syn-str">"Content-Type: application/json"</span> \
   <span class="syn-flag">-d</span> <span class="syn-str">'{"refresh_token":"REFRESH_TOKEN"}'</span></pre>
         </div>
@@ -318,7 +318,7 @@
         <div id="api-panel-python" class="tab-panel hidden" role="tabpanel">
           <pre id="api-code-python" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-kw">import</span> httpx
 
-BASE = <span class="syn-str">"http://localhost:8000"</span>
+BASE = <span class="syn-str">"https://auth-system-9ai3.onrender.com"</span>
 
 <span class="syn-comment"># 1. Register</span>
 httpx.post(<span class="syn-str">f"{BASE}/auth/register"</span>, json={
@@ -342,7 +342,7 @@ me = httpx.get(<span class="syn-str">f"{BASE}/users/me"</span>,
 
         <!-- JavaScript -->
         <div id="api-panel-js" class="tab-panel hidden" role="tabpanel">
-          <pre id="api-code-js" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-kw">const</span> BASE = <span class="syn-str">"http://localhost:8000"</span>;
+          <pre id="api-code-js" class="font-mono text-xs px-5 py-4 overflow-x-auto leading-7 text-text-primary"><span class="syn-kw">const</span> BASE = <span class="syn-str">"https://auth-system-9ai3.onrender.com"</span>;
 
 <span class="syn-comment">// 1. Register</span>
 <span class="syn-kw">await</span> fetch(<span class="syn-str">`${BASE}/auth/register`</span>, {
