@@ -1,9 +1,11 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
 from app.models.user import User
+from app.models.role import Role, UserRole
 from app.core.audit import log_audit_event
 from app.core.security import verify_password
 
@@ -70,7 +72,13 @@ class UserService:
     async def get_user_permissions(self, user_id: uuid.UUID) -> list[str]:
         """Get all permissions for a user."""
         result = await self.session.execute(
-            select(User).where(User.id == user_id)
+            select(User)
+            .where(User.id == user_id)
+            .options(
+                selectinload(User.roles)
+                .selectinload(UserRole.role)
+                .selectinload(Role.permissions)
+            )
         )
         user = result.scalar()
 

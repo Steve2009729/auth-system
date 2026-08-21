@@ -141,7 +141,7 @@ class SessionService:
 
         await log_audit_event(
             self.session, "session_revoked",
-            user_id=user_id, metadata={"session_id": str(session_id)}
+            user_id=user_id, extra_data={"session_id": str(session_id)}
         )
 
     async def revoke_all_sessions(self, user_id: uuid.UUID) -> None:

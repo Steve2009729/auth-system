@@ -73,7 +73,10 @@ async def get_or_create_role(
     perm_map: dict[str, Permission],
     perm_names: list[str],
 ) -> Role:
-    result = await session.execute(select(Role).where(Role.name == name))
+    from sqlalchemy.orm import selectinload
+    result = await session.execute(
+        select(Role).where(Role.name == name).options(selectinload(Role.permissions))
+    )
     role = result.scalar()
     if not role:
         role = Role(name=name, description=description)

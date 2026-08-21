@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 import uuid
 
 from app.db.base import get_db
@@ -34,7 +35,7 @@ async def list_users(
         select(User).offset(skip).limit(limit)
     )
     users = result.scalars().all()
-    return [UserListResponse.from_orm(u) for u in users]
+    return [UserListResponse.model_validate(u) for u in users]
 
 
 @router.get("/users/{user_id}", response_model=UserListResponse)
@@ -54,7 +55,7 @@ async def get_user(
         )
 
     user = await user_service.get_user_by_id(user_id)
-    return UserListResponse.from_orm(user)
+    return UserListResponse.model_validate(user)
 
 
 @router.patch("/users/{user_id}")
@@ -88,7 +89,7 @@ async def update_user(
     await log_audit_event(
         session, "admin_user_updated",
         user_id=current_user.id,
-        metadata={"target_user_id": str(user_id), "changes": data}
+        extra_data={"target_user_id": str(user_id), "changes": data}
     )
 
     await session.commit()
@@ -118,7 +119,7 @@ async def delete_user(
     await log_audit_event(
         session, "admin_user_deleted",
         user_id=current_user.id,
-        metadata={"deleted_user_id": str(user_id)}
+        extra_data={"deleted_user_id": str(user_id)}
     )
 
     await session.commit()
@@ -163,7 +164,7 @@ async def create_role(
     await log_audit_event(
         session, "role_created",
         user_id=current_user.id,
-        metadata={"role_name": data.get("name")}
+        extra_data={"role_name": data.get("name")}
     )
 
     await session.commit()
@@ -189,7 +190,7 @@ async def assign_permission_to_role(
 
     from app.models.role import Role, Permission
 
-    result = await session.execute(select(Role).where(Role.id == role_id))
+    result = await session.execute(select(Role).where(Role.id == role_id).options(selectinload(Role.permissions)))
     role = result.scalar()
 
     if not role:
@@ -213,7 +214,7 @@ async def assign_permission_to_role(
     await log_audit_event(
         session, "permission_granted",
         user_id=current_user.id,
-        metadata={"role_id": str(role_id), "permission": permission_name}
+        extra_data={"role_id": str(role_id), "permission": permission_name}
     )
 
     await session.commit()
@@ -255,7 +256,7 @@ async def assign_role_to_user(
     await log_audit_event(
         session, "role_assigned",
         user_id=current_user.id,
-        metadata={"target_user_id": str(user_id), "role_id": str(role_id)}
+        extra_data={"target_user_id": str(user_id), "role_id": str(role_id)}
     )
 
     await session.commit()
@@ -294,7 +295,7 @@ async def get_audit_logs(
             "event": log.event,
             "ip_address": log.ip_address,
             "created_at": log.created_at.isoformat(),
-            "metadata": log.metadata
+            "metadata": log.extra_data
         }
         for log in logs
     ]

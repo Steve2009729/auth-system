@@ -16,7 +16,7 @@ async def get_current_user_profile(
     current_user: User = Depends(get_current_user)
 ):
     """Get current user profile."""
-    return UserResponse.from_orm(current_user)
+    return UserResponse.model_validate(current_user)
 
 
 @router.patch("/me", response_model=UserResponse)
@@ -33,7 +33,7 @@ async def update_profile(
         avatar_url=data.avatar_url
     )
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)

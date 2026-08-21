@@ -43,7 +43,7 @@ class AuthService:
         if existing.scalar():
             await log_audit_event(
                 self.session, "register_failed", ip_address=ip_address,
-                metadata={"reason": "email_or_username_exists"}
+                extra_data={"reason": "email_or_username_exists"}
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -99,7 +99,7 @@ class AuthService:
             await log_audit_event(
                 self.session, "login_failed",
                 ip_address=ip_address, user_agent=user_agent,
-                metadata={"reason": "invalid_credentials"}
+                extra_data={"reason": "invalid_credentials"}
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -111,7 +111,7 @@ class AuthService:
             await log_audit_event(
                 self.session, "login_blocked",
                 user_id=user.id, ip_address=ip_address,
-                metadata={"reason": "account_locked"}
+                extra_data={"reason": "account_locked"}
             )
             remaining = (user.locked_until - datetime.utcnow()).total_seconds()
             raise HTTPException(
@@ -137,7 +137,7 @@ class AuthService:
             await log_audit_event(
                 self.session, "login_failed",
                 user_id=user.id, ip_address=ip_address,
-                metadata={"reason": "invalid_password", "attempts": user.failed_login_attempts}
+                extra_data={"reason": "invalid_password", "attempts": user.failed_login_attempts}
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -149,7 +149,7 @@ class AuthService:
             await log_audit_event(
                 self.session, "login_failed",
                 user_id=user.id, ip_address=ip_address,
-                metadata={"reason": "account_inactive"}
+                extra_data={"reason": "account_inactive"}
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -419,7 +419,7 @@ class AuthService:
         if not user_id_str:
             await log_audit_event(
                 self.session, "totp_failed", ip_address=ip_address,
-                metadata={"reason": "invalid_session"}
+                extra_data={"reason": "invalid_session"}
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -433,7 +433,7 @@ class AuthService:
         if not user or not user.totp_enabled or not user.totp_secret:
             await log_audit_event(
                 self.session, "totp_failed", user_id=user_id, ip_address=ip_address,
-                metadata={"reason": "2fa_not_enabled"}
+                extra_data={"reason": "2fa_not_enabled"}
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -443,7 +443,7 @@ class AuthService:
         if not verify_totp(user.totp_secret, code):
             await log_audit_event(
                 self.session, "totp_failed", user_id=user.id, ip_address=ip_address,
-                metadata={"reason": "invalid_code"}
+                extra_data={"reason": "invalid_code"}
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

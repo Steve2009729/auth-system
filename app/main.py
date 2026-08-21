@@ -7,6 +7,7 @@ from app.routers import auth, users, sessions, admin
 from app.db.base import engine, Base
 from app.db.redis import close_redis
 from app.config import settings
+import app.models  # force-register all models with Base.metadata
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +62,11 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=int(os.environ.get("PORT", 8000)),
         reload=settings.DEBUG
     )

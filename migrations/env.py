@@ -17,15 +17,22 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+
+def _sync_url(url: str) -> str:
+    """Convert async driver URL to sync for Alembic."""
+    return url.replace("+asyncpg", "")
+
+
 # Set sqlalchemy.url from environment
 if not config.get_main_option("sqlalchemy.url"):
     config.set_main_option(
         "sqlalchemy.url",
-        os.getenv("DATABASE_URL", "postgresql://user:password@localhost/authdb")
+        _sync_url(os.getenv("DATABASE_URL", "postgresql://user:password@localhost/authdb"))
     )
 
 # add your model's MetaData object here
 from app.db.base import Base
+import app.models  # register all models with Base.metadata
 target_metadata = Base.metadata
 
 
@@ -46,11 +53,10 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = os.getenv(
-        "DATABASE_URL",
-        "postgresql://user:password@localhost/authdb"
+    configuration["sqlalchemy.url"] = _sync_url(
+        os.getenv("DATABASE_URL", "postgresql://user:password@localhost/authdb")
     )
-    
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
@@ -70,3 +76,4 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+

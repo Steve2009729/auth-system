@@ -46,7 +46,7 @@ class GoogleOAuth:
         client = self._client()
         uri, state = client.create_authorization_url(
             "https://accounts.google.com/o/oauth2/v2/auth",
-            scopes=["openid", "email", "profile"],
+            scope="openid email profile",
         )
         return uri, state
 
@@ -93,7 +93,7 @@ class GitHubOAuth:
         client = self._client()
         uri, state = client.create_authorization_url(
             "https://github.com/login/oauth/authorize",
-            scopes=["user:email"],
+            scope="user:email",
         )
         return uri, state
 

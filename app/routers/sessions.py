@@ -20,7 +20,7 @@ async def list_sessions(
     """List all active sessions for current user."""
     session_service = SessionService(session)
     sessions = await session_service.get_user_sessions(current_user.id)
-    return [SessionResponse.from_orm(s) for s in sessions]
+    return [SessionResponse.model_validate(s) for s in sessions]
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

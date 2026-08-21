@@ -11,7 +11,7 @@ async def log_audit_event(
     user_id: uuid.UUID | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
-    metadata: dict | None = None
+    extra_data: dict | None = None
 ) -> None:
     """Log an audit event to the database."""
     audit_log = AuditLog(
@@ -19,7 +19,7 @@ async def log_audit_event(
         event=event,
         ip_address=ip_address,
         user_agent=user_agent,
-        metadata=metadata,
+        extra_data=extra_data,
         created_at=datetime.utcnow()
     )
     session.add(audit_log)

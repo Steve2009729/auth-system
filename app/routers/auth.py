@@ -53,7 +53,7 @@ async def register(
     await send_verification_email(user.email, verification_link)
 
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -157,7 +157,7 @@ async def verify_email(
     auth_service = AuthService(session)
     user = await auth_service.verify_email(token)
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/resend-verification", status_code=status.HTTP_200_OK)
@@ -234,7 +234,7 @@ async def reset_password(
     auth_service = AuthService(session)
     user = await auth_service.reset_password(data.token, data.new_password)
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/change-password", response_model=UserResponse)
@@ -251,7 +251,7 @@ async def change_password(
         data.new_password
     )
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.get("/google")
@@ -466,7 +466,7 @@ async def enable_2fa(
     await redis.delete(f"totp_pending:{current_user.id}")
 
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/2fa/disable", response_model=UserResponse)
@@ -479,7 +479,7 @@ async def disable_2fa(
     auth_service = AuthService(session)
     user = await auth_service.disable_2fa(current_user.id, data.password)
     await session.commit()
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/2fa/verify", response_model=TokenResponse)

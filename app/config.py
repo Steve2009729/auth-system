@@ -61,7 +61,7 @@ def _validate_and_patch(s: Settings) -> Settings:
     - DATABASE_URL / REDIS_URL: emits a warning if still pointing at localhost
       defaults in non-debug mode.
     """
-    if s.SECRET_KEY == _INSECURE_KEY:
+    if s.SECRET_KEY in (_INSECURE_KEY, "") or len(s.SECRET_KEY) < 32:
         if s.DEBUG:
             generated = secrets.token_hex(64)
             object.__setattr__(s, "SECRET_KEY", generated)
